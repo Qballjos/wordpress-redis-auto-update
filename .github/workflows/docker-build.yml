@@ -2,7 +2,7 @@ name: Update WordPress and Redis
 
 on:
   schedule:
-    - cron: '0 3 * * *'  # Dagelijks om 03:00
+    - cron: '0 3 * * *'
   push:
     branches: [ main ]
   workflow_dispatch:
@@ -14,11 +14,21 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Pull latest images
-      run: docker-compose pull
+    - name: Set up Docker
+      uses: docker/setup-docker@v2
 
-    - name: Rebuild (optioneel)
-      run: docker-compose build || echo \"No build step defined\"
+    - name: Install Docker Compose plugin
+      run: |
+        mkdir -p ~/.docker/cli-plugins
+        curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o ~/.docker/cli-plugins/docker-compose
+        chmod +x ~/.docker/cli-plugins/docker-compose
+        docker compose version
+
+    - name: Pull latest images
+      run: docker compose pull
+
+    - name: (Optional) Rebuild containers
+      run: docker compose build || echo "No custom build step"
 
     - name: Done
-      run: echo \"Containers up-to-date.\"
+      run: echo "Containers updated."

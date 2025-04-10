@@ -52,8 +52,8 @@ fi
 # Site URL instellen via wp-cli (indien beschikbaar)
 if [ -n "$WORDPRESS_SITE_URL" ]; then
   echo "🔗 Instellen WordPress URL: $WORDPRESS_SITE_URL"
-  wp option update siteurl "$WORDPRESS_SITE_URL" --allow-root || true
-  wp option update home "$WORDPRESS_SITE_URL" --allow-root || true
+  wp --path="$WP_PATH" option update siteurl "$WORDPRESS_SITE_URL" --allow-root
+  wp --path="$WP_PATH" option update home "$WORDPRESS_SITE_URL" --allow-root
 fi
 
 # phpinfo.php maken indien gewenst
@@ -63,9 +63,8 @@ if [ ! -f "$WP_PATH/phpinfo.php" ]; then
   echo "🔧 phpinfo.php aangemaakt."
 fi
 
-# Redis starten
-echo "🚀 Redis starten..."
-service redis-server start
+echo "🚀 Redis starten rechtstreeks via redis-server..."
+redis-server --daemonize yes
 
 # Apache starten
 echo "🚀 Apache starten..."

@@ -1,0 +1,24 @@
+name: Update WordPress and Redis
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # Dagelijks om 03:00
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Pull latest images
+      run: docker-compose pull
+
+    - name: Rebuild (optioneel)
+      run: docker-compose build || echo \"No build step defined\"
+
+    - name: Done
+      run: echo \"Containers up-to-date.\"

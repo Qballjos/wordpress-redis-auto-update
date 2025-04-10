@@ -3,8 +3,17 @@
 set -e
 
 WP_PATH="/var/www/html"
+export PATH=$PATH:/usr/local/bin
 
 echo "📦 Container startup initiated..."
+
+# Wacht tot de database bereikbaar is
+echo "⏳ Wachten tot de database bereikbaar is..."
+until mysql -h"$WORDPRESS_DB_HOST" -u"$WORDPRESS_DB_USER" -p"$WORDPRESS_DB_PASSWORD" -e "USE $WORDPRESS_DB_NAME;" 2>/dev/null; do
+  echo "❌ Database nog niet bereikbaar, opnieuw proberen in 5s..."
+  sleep 5
+done
+echo "✅ Database connectie gelukt."
 
 # WordPress installeren als het nog niet bestaat
 if [ ! -f "$WP_PATH/wp-config.php" ]; then
@@ -39,7 +48,7 @@ else
   echo "✅ WordPress is al geïnstalleerd – overslaan."
 fi
 
-# Install wp-cli locally if not present
+# Install wp-cli lokaal als het niet aanwezig is
 if ! command -v wp &> /dev/null; then
   echo "🛠️ wp-cli niet gevonden – downloaden..."
   curl -s -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
@@ -58,10 +67,10 @@ fi
 
 # Controleer of WordPress al geïnstalleerd is (in de database)
 if ! wp --path="$WP_PATH" core is-installed --allow-root; then
-  echo "📦 WordPress is nog niet geïnstalleerd – installeren..."
+  echo "📦 WordPress is nog niet geïnstalleerd – uitvoeren van wp core install..."
   wp --path="$WP_PATH" core install \
     --url="$WORDPRESS_SITE_URL" \
-    --title="JosVisserICT.nl" \
+    --title="${WORDPRESS_TITLE:-JosVisserICT.nl}" \
     --admin_user="${WORDPRESS_ADMIN_USER:-admin}" \
     --admin_password="${WORDPRESS_ADMIN_PASSWORD:-admin}" \
     --admin_email="${WORDPRESS_ADMIN_EMAIL:-admin@example.com}" \
@@ -78,6 +87,7 @@ if [ ! -f "$WP_PATH/phpinfo.php" ]; then
   echo "🔧 phpinfo.php aangemaakt."
 fi
 
+# Redis starten rechtstreeks via redis-server
 echo "🚀 Redis starten rechtstreeks via redis-server..."
 redis-server --daemonize yes
 

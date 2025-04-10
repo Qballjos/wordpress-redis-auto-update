@@ -3,17 +3,8 @@
 set -e
 
 WP_PATH="/var/www/html"
-export PATH=$PATH:/usr/local/bin
 
 echo "📦 Container startup initiated..."
-
-# Wacht tot de database bereikbaar is
-echo "⏳ Wachten tot de database bereikbaar is..."
-until mysql -h"$WORDPRESS_DB_HOST" -u"$WORDPRESS_DB_USER" -p"$WORDPRESS_DB_PASSWORD" -e "USE $WORDPRESS_DB_NAME;" 2>/dev/null; do
-  echo "❌ Database nog niet bereikbaar, opnieuw proberen in 5s..."
-  sleep 5
-done
-echo "✅ Database connectie gelukt."
 
 # WordPress installeren als het nog niet bestaat
 if [ ! -f "$WP_PATH/wp-config.php" ]; then
@@ -27,16 +18,16 @@ if [ ! -f "$WP_PATH/wp-config.php" ]; then
   cp -r /tmp/wordpress/* "$WP_PATH"
   chown -R www-data:www-data "$WP_PATH"
 
+  # wp-config.php configureren met omgevingsvariabelen
   echo "🔧 wp-config.php configureren..."
 
-  # wp-config instellen
   cp "$WP_PATH/wp-config-sample.php" "$WP_PATH/wp-config.php"
   sed -i "s/database_name_here/${WORDPRESS_DB_NAME}/g" "$WP_PATH/wp-config.php"
   sed -i "s/username_here/${WORDPRESS_DB_USER}/g" "$WP_PATH/wp-config.php"
   sed -i "s/password_here/${WORDPRESS_DB_PASSWORD}/g" "$WP_PATH/wp-config.php"
   sed -i "s/localhost/${WORDPRESS_DB_HOST}/g" "$WP_PATH/wp-config.php"
 
-  # HTTPS forceren via Cloudflare header
+  # Force HTTPS if behind Cloudflare Tunnel
   cat <<EOF >> "$WP_PATH/wp-config.php"
 
 // Force HTTPS behind proxy like Cloudflare Tunnel
@@ -44,11 +35,13 @@ if (isset(\$_SERVER['HTTP_X_FORWARDED_PROTO']) && \$_SERVER['HTTP_X_FORWARDED_PR
     \$_SERVER['HTTPS'] = 'on';
 }
 EOF
+
+  echo "✅ wp-config.php geconfigureerd."
 else
   echo "✅ WordPress is al geïnstalleerd – overslaan."
 fi
 
-# Install wp-cli lokaal als het niet aanwezig is
+# Install wp-cli locally if not present
 if ! command -v wp &> /dev/null; then
   echo "🛠️ wp-cli niet gevonden – downloaden..."
   curl -s -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
@@ -57,6 +50,21 @@ if ! command -v wp &> /dev/null; then
 else
   echo "✅ wp-cli al beschikbaar."
 fi
+
+# Controleer of de database beschikbaar is
+echo "⏳ Wachten tot de database bereikbaar is..."
+attempt=0
+max_attempts=12  # Verhoog aantal pogingen naar 12 (60 seconden)
+until mysql -h"$WORDPRESS_DB_HOST" -u"$WORDPRESS_DB_USER" -p"$WORDPRESS_DB_PASSWORD" -e "USE $WORDPRESS_DB_NAME;" 2>/dev/null; do
+  if [ $attempt -ge $max_attempts ]; then
+    echo "❌ Database niet bereikbaar na $max_attempts pogingen, stoppen."
+    exit 1
+  fi
+  echo "❌ Database nog niet bereikbaar, opnieuw proberen in 5s... ($attempt)"
+  sleep 5
+  attempt=$((attempt + 1))
+done
+echo "✅ Database connectie gelukt."
 
 # Site URL instellen via wp-cli (indien beschikbaar)
 if [ -n "$WORDPRESS_SITE_URL" ]; then
@@ -67,10 +75,10 @@ fi
 
 # Controleer of WordPress al geïnstalleerd is (in de database)
 if ! wp --path="$WP_PATH" core is-installed --allow-root; then
-  echo "📦 WordPress is nog niet geïnstalleerd – uitvoeren van wp core install..."
+  echo "📦 WordPress is nog niet geïnstalleerd – installeren..."
   wp --path="$WP_PATH" core install \
     --url="$WORDPRESS_SITE_URL" \
-    --title="${WORDPRESS_TITLE:-JosVisserICT.nl}" \
+    --title="JosVisserICT.nl" \
     --admin_user="${WORDPRESS_ADMIN_USER:-admin}" \
     --admin_password="${WORDPRESS_ADMIN_PASSWORD:-admin}" \
     --admin_email="${WORDPRESS_ADMIN_EMAIL:-admin@example.com}" \
@@ -87,7 +95,6 @@ if [ ! -f "$WP_PATH/phpinfo.php" ]; then
   echo "🔧 phpinfo.php aangemaakt."
 fi
 
-# Redis starten rechtstreeks via redis-server
 echo "🚀 Redis starten rechtstreeks via redis-server..."
 redis-server --daemonize yes
 

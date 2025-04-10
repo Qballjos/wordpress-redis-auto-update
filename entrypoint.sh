@@ -39,21 +39,6 @@ else
   echo "✅ WordPress is al geïnstalleerd – overslaan."
 fi
 
-# Controleer of WordPress al geïnstalleerd is (in de database)
-if ! wp --path="$WP_PATH" core is-installed --allow-root; then
-  echo "📦 WordPress is nog niet geïnstalleerd – installeren..."
-  wp --path="$WP_PATH" core install \
-    --url="$WORDPRESS_SITE_URL" \
-    --title="JosVisserICT.nl" \
-    --admin_user="${WORDPRESS_ADMIN_USER:-admin}" \
-    --admin_password="${WORDPRESS_ADMIN_PASSWORD:-admin}" \
-    --admin_email="${WORDPRESS_ADMIN_EMAIL:-admin@example.com}" \
-    --skip-email \
-    --allow-root
-else
-  echo "✅ WordPress database is al geïnstalleerd."
-fi
-
 # Install wp-cli locally if not present
 if ! command -v wp &> /dev/null; then
   echo "🛠️ wp-cli niet gevonden – downloaden..."
@@ -69,6 +54,21 @@ if [ -n "$WORDPRESS_SITE_URL" ]; then
   echo "🔗 Instellen WordPress URL: $WORDPRESS_SITE_URL"
   wp --path="$WP_PATH" option update siteurl "$WORDPRESS_SITE_URL" --allow-root
   wp --path="$WP_PATH" option update home "$WORDPRESS_SITE_URL" --allow-root
+fi
+
+# Controleer of WordPress al geïnstalleerd is (in de database)
+if ! wp --path="$WP_PATH" core is-installed --allow-root; then
+  echo "📦 WordPress is nog niet geïnstalleerd – installeren..."
+  wp --path="$WP_PATH" core install \
+    --url="$WORDPRESS_SITE_URL" \
+    --title="JosVisserICT.nl" \
+    --admin_user="${WORDPRESS_ADMIN_USER:-admin}" \
+    --admin_password="${WORDPRESS_ADMIN_PASSWORD:-admin}" \
+    --admin_email="${WORDPRESS_ADMIN_EMAIL:-admin@example.com}" \
+    --skip-email \
+    --allow-root
+else
+  echo "✅ WordPress database is al geïnstalleerd."
 fi
 
 # phpinfo.php maken indien gewenst

@@ -1,58 +1,62 @@
 #!/bin/bash
 
-# Set the path to the WordPress installation directory
-WP_PATH=/var/www/html
+set -e
 
-# Check if wp-config.php exists. If not, set it up.
+WP_PATH="/var/www/html"
+
+echo "📦 Container startup initiated..."
+
+# WordPress installeren als het nog niet bestaat
 if [ ! -f "$WP_PATH/wp-config.php" ]; then
-  echo "🧩 WordPress not found in $WP_PATH – initializing..."
+  echo "🧩 WordPress niet gevonden in $WP_PATH – installatie starten..."
 
-  # Download the latest WordPress
+  # Download WordPress
   curl -o /tmp/wordpress.tar.gz https://wordpress.org/latest.tar.gz
   tar -xzf /tmp/wordpress.tar.gz -C /tmp
 
-  # Copy WordPress files to /var/www/html
-  cp -r /tmp/wordpress/* $WP_PATH
-  chown -R www-data:www-data $WP_PATH
+  # Kopieer bestanden
+  cp -r /tmp/wordpress/* "$WP_PATH"
+  chown -R www-data:www-data "$WP_PATH"
 
-  # Modify wp-config.php to use environment variables
-  cp $WP_PATH/wp-config-sample.php $WP_PATH/wp-config.php
-  sed -i "s/database_name_here/$(getenv 'WORDPRESS_DB_NAME')/g" $WP_PATH/wp-config.php
-  sed -i "s/username_here/$(getenv 'WORDPRESS_DB_USER')/g" $WP_PATH/wp-config.php
-  sed -i "s/password_here/$(getenv 'WORDPRESS_DB_PASSWORD')/g" $WP_PATH/wp-config.php
-  sed -i "s/localhost/$(getenv 'WORDPRESS_DB_HOST')/g" $WP_PATH/wp-config.php
-else
-  echo "✅ WordPress already exists – no need to initialize."
-fi
+  echo "🔧 wp-config.php configureren..."
 
-if [ -n "$WORDPRESS_SITE_URL" ]; then
-  echo "🔗 Setting WordPress Site URL to $WORDPRESS_SITE_URL"
-  wp option update siteurl "$WORDPRESS_SITE_URL" --allow-root
-  wp option update home "$WORDPRESS_SITE_URL" --allow-root
-fi
+  # wp-config instellen
+  cp "$WP_PATH/wp-config-sample.php" "$WP_PATH/wp-config.php"
+  sed -i "s/database_name_here/${WORDPRESS_DB_NAME}/g" "$WP_PATH/wp-config.php"
+  sed -i "s/username_here/${WORDPRESS_DB_USER}/g" "$WP_PATH/wp-config.php"
+  sed -i "s/password_here/${WORDPRESS_DB_PASSWORD}/g" "$WP_PATH/wp-config.php"
+  sed -i "s/localhost/${WORDPRESS_DB_HOST}/g" "$WP_PATH/wp-config.php"
 
-# Check if phpinfo.php exists. If not, create it for debugging purposes.
-if [ ! -f "$WP_PATH/phpinfo.php" ]; then
-  echo "🔧 phpinfo.php not found – creating for debugging..."
+  # HTTPS forceren via Cloudflare header
+  cat <<EOF >> "$WP_PATH/wp-config.php"
 
-  # Create phpinfo.php with information about the PHP setup
-  echo "<?php phpinfo(); ?>" > "$WP_PATH/phpinfo.php"
-  chown www-data:www-data "$WP_PATH/phpinfo.php"
-fi
-
-# Start Redis
-echo "🚀 Starting Redis..."
-service redis-server start
-
-# Force HTTPS if behind Cloudflare Tunnel
-cat <<EOF >> /var/www/html/wp-config.php
-
-// Force HTTPS behind proxy
+// Force HTTPS behind proxy like Cloudflare Tunnel
 if (isset(\$_SERVER['HTTP_X_FORWARDED_PROTO']) && \$_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
     \$_SERVER['HTTPS'] = 'on';
 }
 EOF
+else
+  echo "✅ WordPress is al geïnstalleerd – overslaan."
+fi
 
-# Start Apache
-echo "🚀 Starting Apache..."
+# Site URL instellen via wp-cli (indien beschikbaar)
+if [ -n "$WORDPRESS_SITE_URL" ]; then
+  echo "🔗 Instellen WordPress URL: $WORDPRESS_SITE_URL"
+  wp option update siteurl "$WORDPRESS_SITE_URL" --allow-root || true
+  wp option update home "$WORDPRESS_SITE_URL" --allow-root || true
+fi
+
+# phpinfo.php maken indien gewenst
+if [ ! -f "$WP_PATH/phpinfo.php" ]; then
+  echo "<?php phpinfo(); ?>" > "$WP_PATH/phpinfo.php"
+  chown www-data:www-data "$WP_PATH/phpinfo.php"
+  echo "🔧 phpinfo.php aangemaakt."
+fi
+
+# Redis starten
+echo "🚀 Redis starten..."
+service redis-server start
+
+# Apache starten
+echo "🚀 Apache starten..."
 apachectl -D FOREGROUND

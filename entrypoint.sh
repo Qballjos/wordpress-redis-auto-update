@@ -39,6 +39,16 @@ else
   echo "✅ WordPress is al geïnstalleerd – overslaan."
 fi
 
+# Install wp-cli locally if not present
+if ! command -v wp &> /dev/null; then
+  echo "🛠️ wp-cli niet gevonden – downloaden..."
+  curl -s -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+  chmod +x wp-cli.phar
+  mv wp-cli.phar /usr/local/bin/wp
+else
+  echo "✅ wp-cli al beschikbaar."
+fi
+
 # Site URL instellen via wp-cli (indien beschikbaar)
 if [ -n "$WORDPRESS_SITE_URL" ]; then
   echo "🔗 Instellen WordPress URL: $WORDPRESS_SITE_URL"

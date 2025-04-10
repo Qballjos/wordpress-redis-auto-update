@@ -24,6 +24,12 @@ RUN apt-get update && apt-get install -y \
 # Set PHP config for WordPress
 RUN echo "upload_max_filesize = 256M\npost_max_size = 256M\nmemory_limit = 1G\nmax_execution_time = 300\n" > /etc/php/8.1/apache2/conf.d/99-wordpress.ini || true
 
+# Copy custom PHP configuration for Apache
+COPY php.ini /etc/php/8.3/apache2/php.ini
+
+# Copy custom PHP configuration for CLI
+COPY php.ini /etc/php/8.3/cli/php.ini
+
 # Download and extract WordPress
 RUN curl -o /tmp/wordpress.tar.gz https://wordpress.org/latest.tar.gz && \
     tar -xzf /tmp/wordpress.tar.gz -C /var/www/html --strip-components=1 && \

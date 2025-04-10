@@ -25,6 +25,12 @@ else
   echo "✅ WordPress already exists – no need to initialize."
 fi
 
+if [ -n "$WORDPRESS_SITE_URL" ]; then
+  echo "🔗 Setting WordPress Site URL to $WORDPRESS_SITE_URL"
+  wp option update siteurl "$WORDPRESS_SITE_URL" --allow-root
+  wp option update home "$WORDPRESS_SITE_URL" --allow-root
+fi
+
 # Check if phpinfo.php exists. If not, create it for debugging purposes.
 if [ ! -f "$WP_PATH/phpinfo.php" ]; then
   echo "🔧 phpinfo.php not found – creating for debugging..."
@@ -37,6 +43,15 @@ fi
 # Start Redis
 echo "🚀 Starting Redis..."
 service redis-server start
+
+# Force HTTPS if behind Cloudflare Tunnel
+cat <<EOF >> /var/www/html/wp-config.php
+
+// Force HTTPS behind proxy
+if (isset(\$_SERVER['HTTP_X_FORWARDED_PROTO']) && \$_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+    \$_SERVER['HTTPS'] = 'on';
+}
+EOF
 
 # Start Apache
 echo "🚀 Starting Apache..."

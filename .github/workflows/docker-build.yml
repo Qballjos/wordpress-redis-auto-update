@@ -18,7 +18,7 @@ jobs:
       run: echo "${{ secrets.CR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
     - name: Build image
-      run: docker build -t ghcr.io/${{ github.repository_owner }}/wordpress-redis:latest .
+      run: docker build -t ghcr.io/qballjos/wordpress-redis:latest .
 
     - name: Push image
-      run: docker push ghcr.io/${{ github.repository_owner }}/wordpress-redis:latest
+      run: docker push ghcr.io/qballjos/wordpress-redis:latest

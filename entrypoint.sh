@@ -39,6 +39,21 @@ else
   echo "✅ WordPress is al geïnstalleerd – overslaan."
 fi
 
+# Controleer of WordPress al geïnstalleerd is (in de database)
+if ! wp --path="$WP_PATH" core is-installed --allow-root; then
+  echo "📦 WordPress is nog niet geïnstalleerd – installeren..."
+  wp --path="$WP_PATH" core install \
+    --url="$WORDPRESS_SITE_URL" \
+    --title="JosVisserICT.nl" \
+    --admin_user="${WORDPRESS_ADMIN_USER:-admin}" \
+    --admin_password="${WORDPRESS_ADMIN_PASSWORD:-admin}" \
+    --admin_email="${WORDPRESS_ADMIN_EMAIL:-admin@example.com}" \
+    --skip-email \
+    --allow-root
+else
+  echo "✅ WordPress database is al geïnstalleerd."
+fi
+
 # Install wp-cli locally if not present
 if ! command -v wp &> /dev/null; then
   echo "🛠️ wp-cli niet gevonden – downloaden..."

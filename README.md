@@ -1,30 +1,30 @@
+# WordPress Redis Auto-Update Container
 
-# WordPress + Redis Auto-Updating Docker Container
+Een Docker container die automatisch:
+- WordPress downloadt en installeert
+- Redis integreert
+- PHP optimaliseert
+- HTTPS ondersteunt via Cloudflare Tunnel headers
+- Automatisch updates pusht via GitHub Actions
 
-This container is designed to automatically download, configure, and run WordPress with Redis support using environment variables.
+## Gebruiken met Docker
 
-## Features
-- Ubuntu-based image with Apache, PHP 8.3, Redis
-- wp-cli installation and use
-- Cloudflare HTTPS proxy support
-- Persistent volume for /var/www/html
-- GitHub Actions CI to auto-publish image daily
-
-## Usage (Docker / Unraid)
-
-```yaml
-environment:
-  WORDPRESS_DB_NAME: wordpress
-  WORDPRESS_DB_USER: wpuser
-  WORDPRESS_DB_PASSWORD: secret
-  WORDPRESS_DB_HOST: db:3306
-  WORDPRESS_SITE_URL: https://yourdomain.com
-  WORDPRESS_ADMIN_USER: admin
-  WORDPRESS_ADMIN_PASSWORD: adminpass
-  WORDPRESS_ADMIN_EMAIL: admin@example.com
-volumes:
-  - your-wordpress-data:/var/www/html
+```bash
+docker run -d \
+  -p 8080:80 \
+  -e WORDPRESS_DB_HOST=192.168.1.10 \
+  -e WORDPRESS_DB_NAME=wp \
+  -e WORDPRESS_DB_USER=wpuser \
+  -e WORDPRESS_DB_PASSWORD=wppass \
+  -e WORDPRESS_SITE_URL=https://jouwdomein.nl \
+  -v wordpress_data:/var/www/html \
+  ghcr.io/jouwgebruikersnaam/wordpress-redis-auto-update:latest
 ```
 
-## Updating
-This image is rebuilt daily using GitHub Actions and pushed to GHCR.
+## GitHub Actions
+
+Push naar `main` → triggert build en publicatie naar GHCR.
+
+## Persistent Data
+
+Mount `/var/www/html` naar een Docker volume of Unraid share.

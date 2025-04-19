@@ -1,18 +1,24 @@
-
-name: Build and Push Docker image
+name: Build and Push Docker Image
 
 on:
   push:
     branches:
       - main
-  schedule:
-    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
@@ -30,4 +36,6 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/qballjos/wordpress-redis-auto-update:latest
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}

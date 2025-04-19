@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 set -e
@@ -6,20 +7,21 @@ WP_PATH="/var/www/html"
 
 echo "📦 Container startup initiated..."
 
-# WordPress installeren als het nog niet bestaat
-if [ ! -f "$WP_PATH/wp-config.php" ]; then
-  echo "🧩 WordPress niet gevonden in $WP_PATH – installatie starten..."
+# Install wp-cli if missing
+if ! command -v wp &> /dev/null; then
+  echo "🛠️ Installing wp-cli..."
+  curl -s -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+  chmod +x wp-cli.phar
+  mv wp-cli.phar /usr/local/bin/wp
+fi
 
-  # Download WordPress
+# Install WordPress if not found
+if [ ! -f "$WP_PATH/wp-config.php" ]; then
+  echo "🧩 Installing WordPress..."
   curl -o /tmp/wordpress.tar.gz https://wordpress.org/latest.tar.gz
   tar -xzf /tmp/wordpress.tar.gz -C /tmp
-
-  # Kopieer bestanden
   cp -r /tmp/wordpress/* "$WP_PATH"
   chown -R www-data:www-data "$WP_PATH"
-
-  # wp-config.php configureren met omgevingsvariabelen
-  echo "🔧 wp-config.php configureren..."
 
   cp "$WP_PATH/wp-config-sample.php" "$WP_PATH/wp-config.php"
   sed -i "s/database_name_here/${WORDPRESS_DB_NAME}/g" "$WP_PATH/wp-config.php"
@@ -27,7 +29,6 @@ if [ ! -f "$WP_PATH/wp-config.php" ]; then
   sed -i "s/password_here/${WORDPRESS_DB_PASSWORD}/g" "$WP_PATH/wp-config.php"
   sed -i "s/localhost/${WORDPRESS_DB_HOST}/g" "$WP_PATH/wp-config.php"
 
-  # Force HTTPS if behind Cloudflare Tunnel
   cat <<EOF >> "$WP_PATH/wp-config.php"
 
 // Force HTTPS behind proxy like Cloudflare Tunnel
@@ -35,69 +36,38 @@ if (isset(\$_SERVER['HTTP_X_FORWARDED_PROTO']) && \$_SERVER['HTTP_X_FORWARDED_PR
     \$_SERVER['HTTPS'] = 'on';
 }
 EOF
-
-  echo "✅ wp-config.php geconfigureerd."
-else
-  echo "✅ WordPress is al geïnstalleerd – overslaan."
 fi
 
-# Install wp-cli locally if not present
-if ! command -v wp &> /dev/null; then
-  echo "🛠️ wp-cli niet gevonden – downloaden..."
-  curl -s -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-  chmod +x wp-cli.phar
-  mv wp-cli.phar /usr/local/bin/wp
-else
-  echo "✅ wp-cli al beschikbaar."
-fi
-
-# Controleer of de database beschikbaar is
-echo "⏳ Wachten tot de database bereikbaar is..."
-attempt=0
-max_attempts=12  # Verhoog aantal pogingen naar 12 (60 seconden)
-until mysql -h"$WORDPRESS_DB_HOST" -u"$WORDPRESS_DB_USER" -p"$WORDPRESS_DB_PASSWORD" -e "USE $WORDPRESS_DB_NAME;" 2>/dev/null; do
-  if [ $attempt -ge $max_attempts ]; then
-    echo "❌ Database niet bereikbaar na $max_attempts pogingen, stoppen."
-    exit 1
-  fi
-  echo "❌ Database nog niet bereikbaar, opnieuw proberen in 5s... ($attempt)"
+# Wait for DB
+echo "⏳ Waiting for database..."
+RETRIES=20
+until wp --path="$WP_PATH" core is-installed --allow-root || [ $RETRIES -eq 0 ]; do
+  echo "❌ Database not ready, retrying in 5s... ($RETRIES)"
+  RETRIES=$((RETRIES-1))
   sleep 5
-  attempt=$((attempt + 1))
 done
-echo "✅ Database connectie gelukt."
 
-# Site URL instellen via wp-cli (indien beschikbaar)
+# Install WordPress core if not yet installed
+if ! wp --path="$WP_PATH" core is-installed --allow-root; then
+  echo "⚙️ Setting up WordPress..."
+  wp --path="$WP_PATH" core install     --url="${WORDPRESS_SITE_URL}"     --title="JosVisserICT"     --admin_user="${WORDPRESS_ADMIN_USER}"     --admin_password="${WORDPRESS_ADMIN_PASSWORD}"     --admin_email="${WORDPRESS_ADMIN_EMAIL}"     --skip-email     --allow-root
+fi
+
+# Set site URL
 if [ -n "$WORDPRESS_SITE_URL" ]; then
-  echo "🔗 Instellen WordPress URL: $WORDPRESS_SITE_URL"
   wp --path="$WP_PATH" option update siteurl "$WORDPRESS_SITE_URL" --allow-root
   wp --path="$WP_PATH" option update home "$WORDPRESS_SITE_URL" --allow-root
 fi
 
-# Controleer of WordPress al geïnstalleerd is (in de database)
-if ! wp --path="$WP_PATH" core is-installed --allow-root; then
-  echo "📦 WordPress is nog niet geïnstalleerd – installeren..."
-  wp --path="$WP_PATH" core install \
-    --url="$WORDPRESS_SITE_URL" \
-    --title="JosVisserICT.nl" \
-    --admin_user="${WORDPRESS_ADMIN_USER:-admin}" \
-    --admin_password="${WORDPRESS_ADMIN_PASSWORD:-admin}" \
-    --admin_email="${WORDPRESS_ADMIN_EMAIL:-admin@example.com}" \
-    --skip-email \
-    --allow-root
-else
-  echo "✅ WordPress database is al geïnstalleerd."
-fi
+# Start Redis in background
+redis-server --daemonize yes
 
-# phpinfo.php maken indien gewenst
+# Add phpinfo for debugging
 if [ ! -f "$WP_PATH/phpinfo.php" ]; then
   echo "<?php phpinfo(); ?>" > "$WP_PATH/phpinfo.php"
   chown www-data:www-data "$WP_PATH/phpinfo.php"
-  echo "🔧 phpinfo.php aangemaakt."
 fi
 
-echo "🚀 Redis starten rechtstreeks via redis-server..."
-redis-server --daemonize yes
-
-# Apache starten
-echo "🚀 Apache starten..."
-apachectl -D FOREGROUND
+# Start Apache
+echo "🚀 Starting Apache..."
+exec apachectl -D FOREGROUND

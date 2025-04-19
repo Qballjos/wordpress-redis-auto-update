@@ -1,16 +1,30 @@
-# WordPress + Redis Docker Setup (zonder DB)
 
-Deze setup draait WordPress en Redis in Docker containers. De database draait al extern, dus deze container verbindt enkel via omgeving variabelen.
+# WordPress + Redis Auto-Updating Docker Container
 
-## 📦 Inhoud
+This container is designed to automatically download, configure, and run WordPress with Redis support using environment variables.
 
-- WordPress (laatste versie)
-- Redis (laatste versie)
-- Geen MySQL: je eigen DB-container wordt gebruikt
+## Features
+- Ubuntu-based image with Apache, PHP 8.3, Redis
+- wp-cli installation and use
+- Cloudflare HTTPS proxy support
+- Persistent volume for /var/www/html
+- GitHub Actions CI to auto-publish image daily
 
-## 🚀 Starten
+## Usage (Docker / Unraid)
 
-1. Pas `.env` aan met jouw database-gegevens
-2. Start containers:
-   ```bash
-   docker-compose up -d
+```yaml
+environment:
+  WORDPRESS_DB_NAME: wordpress
+  WORDPRESS_DB_USER: wpuser
+  WORDPRESS_DB_PASSWORD: secret
+  WORDPRESS_DB_HOST: db:3306
+  WORDPRESS_SITE_URL: https://yourdomain.com
+  WORDPRESS_ADMIN_USER: admin
+  WORDPRESS_ADMIN_PASSWORD: adminpass
+  WORDPRESS_ADMIN_EMAIL: admin@example.com
+volumes:
+  - your-wordpress-data:/var/www/html
+```
+
+## Updating
+This image is rebuilt daily using GitHub Actions and pushed to GHCR.

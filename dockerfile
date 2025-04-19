@@ -1,48 +1,31 @@
-FROM ubuntu:latest
+
+FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install dependencies
 RUN apt-get update && apt-get install -y \
     apache2 \
-    php \
-    php-mysql \
-    php-xml \
-    php-mbstring \
-    php-curl \
-    php-gd \
-    php-zip \
-    php-redis \
-    redis-server \
-    curl \
-    unzip \
-    less \
-    nano \
-    wget \
+    php php-mysql php-redis php-curl php-gd php-mbstring php-xml php-xmlrpc php-zip php-soap php-intl php-bcmath \
+    curl less unzip wget redis-server mariadb-client \
+    libapache2-mod-php \
     && apt-get clean
 
-# Set PHP config for WordPress
-RUN echo "upload_max_filesize = 256M\npost_max_size = 256M\nmemory_limit = 1G\nmax_execution_time = 300\n" > /etc/php/8.1/apache2/conf.d/99-wordpress.ini || true
+# Enable Apache mods
+RUN a2enmod rewrite headers
 
-# Copy custom PHP configuration for Apache
-COPY php.ini /etc/php/8.3/apache2/php.ini
+# Configure PHP for WordPress
+RUN echo "upload_max_filesize = 64M" > /etc/php/*/apache2/conf.d/30-custom.ini && \
+    echo "post_max_size = 64M" >> /etc/php/*/apache2/conf.d/30-custom.ini && \
+    echo "max_execution_time = 300" >> /etc/php/*/apache2/conf.d/30-custom.ini
 
-# Copy custom PHP configuration for CLI
-COPY php.ini /etc/php/8.3/cli/php.ini
-
-# Download and extract WordPress
-RUN curl -o /tmp/wordpress.tar.gz https://wordpress.org/latest.tar.gz && \
-    tar -xzf /tmp/wordpress.tar.gz -C /var/www/html --strip-components=1 && \
-    chown -R www-data:www-data /var/www/html
-
-# Install wp-cli
-RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
-    chmod +x wp-cli.phar && \
-    mv wp-cli.phar /usr/local/bin/wp
-    
-# Copy entrypoint script
+# Copy entrypoint
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+
+# Create necessary directories
+RUN mkdir -p /var/www/html
+VOLUME /var/www/html
 
 EXPOSE 80
 

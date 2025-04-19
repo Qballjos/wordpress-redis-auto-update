@@ -15,9 +15,10 @@ RUN apt-get update && apt-get install -y \
 RUN a2enmod rewrite headers
 
 # Configure PHP for WordPress
-RUN echo "upload_max_filesize = 64M" > /etc/php/*/apache2/conf.d/30-custom.ini && \
-    echo "post_max_size = 64M" >> /etc/php/*/apache2/conf.d/30-custom.ini && \
-    echo "max_execution_time = 300" >> /etc/php/*/apache2/conf.d/30-custom.ini
+RUN PHP_DIR=$(find /etc/php -type d -name apache2) && \
+    echo "upload_max_filesize = 64M" > $PHP_DIR/conf.d/30-custom.ini && \
+    echo "post_max_size = 64M" >> $PHP_DIR/conf.d/30-custom.ini && \
+    echo "max_execution_time = 300" >> $PHP_DIR/conf.d/30-custom.ini
 
 # Copy entrypoint
 COPY entrypoint.sh /entrypoint.sh

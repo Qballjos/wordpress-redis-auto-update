@@ -5,6 +5,8 @@ on:
     branches:
       - main
   workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *' # Dit draait de workflow elke dag om 00:00 UTC
 
 env:
   IMAGE_NAME: ghcr.io/qballjos/wordpress-redis-auto-update
